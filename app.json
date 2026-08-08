@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "CarTempLogger",
+    "slug": "CarTempLogger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.cartemplogger",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "CarTempLogger uses Bluetooth to connect to the temperature sensor accessory.",
+        "NSBluetoothPeripheralUsageDescription": "CarTempLogger uses Bluetooth to connect to the temperature sensor accessory.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "CarTempLogger uses Bluetooth to connect to the temperature sensor accessory."
+        }
+      ]
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.yourname.cartemplogger",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "84f33a9a-eebb-4bcf-af81-ccbc368061e1"
+      }
+    }
+  }
+}
