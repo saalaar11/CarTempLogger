@@ -23,6 +23,8 @@ export default function App() {
   const [carID, setCarID] = useState<string | null>(null);
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [scanStartTime, setScanStartTime] = useState<number>(Date.now());
+  
 
   // Load records from storage on app start
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function App() {
   if (screen === "scan") {
     return (
       <ScanScreen
-        onScanned={(id) => { setCarID(id); setScreen("reading"); }}
+        onScanned={(id) => { setCarID(id); setScreen("reading"); setScanStartTime(Date.now()); }}
       />
     );
   }
@@ -58,18 +60,20 @@ export default function App() {
         onComplete={(readings) => {
           const avg = (readings.center + readings.ventA + readings.ventB) / 3;
           const newRecord: ScanRecord = {
-            id: Date.now().toString(),
-            carID,
-            center: readings.center,
-            ventA: readings.ventA,
-            ventB: readings.ventB,
-            average: avg,
-            status: getStatus(avg),
-            timestamp: Date.now(),
-            inspectorName: inspector.name,
-            inspectorID: inspector.id,
-            depot: readings.depot,
-          };
+              id: Date.now().toString(),
+              carID,
+              center: readings.center,
+              ventA: readings.ventA,
+              ventB: readings.ventB,
+              average: avg,
+              status: getStatus(avg),
+              timestamp: Date.now(),
+              startTime: scanStartTime,  // we'll add this below
+              inspectorName: inspector.name,
+              inspectorID: inspector.id,
+              depot: readings.depot,
+              notes: readings.notes || "",
+            };
           setRecords(prev => [...prev, newRecord]);
           setScreen("home");
         }}

@@ -12,6 +12,7 @@ type Props = {
     ventA: number;
     ventB: number;
     depot: string;
+    notes: string;
   }) => void;
   onBack: () => void;
 };
@@ -170,7 +171,7 @@ export default function ReadingScreen({ carID, onComplete, onBack }: Props) {
         {/* Save button */}
         <Pressable
           style={[styles.button, !allValid && styles.buttonDisabled]}
-          onPress={() => allValid && onComplete({ ...parsed, depot })}
+          onPress={() => allValid && onComplete({ ...parsed, depot, notes: "" })}
           disabled={!allValid}
         >
           <Text style={styles.buttonText}>Save Reading</Text>

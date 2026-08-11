@@ -14,9 +14,11 @@ export type ScanRecord = {
   average: number;
   status: "OK" | "WATCH" | "FLAG FOR SERVICE";
   timestamp: number;
+  startTime: number;
   inspectorName: string;
   inspectorID: string;
   depot: string;
+  notes: string;
 };
 
 type Props = {
@@ -26,7 +28,7 @@ type Props = {
 };
 
 // Replace with your laptop's actual IP address (run ipconfig to find it)
-const SERVER_URL = "cartempserver-production.up.railway.app";
+const SERVER_URL = "https://cartempserver-production.up.railway.app";
 
 function statusColor(status: string) {
   if (status === "FLAG FOR SERVICE") return "#FF3B30";
@@ -39,11 +41,16 @@ function formatDate(ts: number) {
 }
 
 function generateCSV(records: ScanRecord[]): string {
-  const header = "Inspection DateTime,Inspector Name,Inspector ID,Car Number,Center (°F),Vent A (°F),Vent B (°F),Average (°F),Status,Shift,Location";
+  const header = "Uploaded On,Inspector Last Name,Car ID,Date,AM/PM,Shop,Start Time,Center (°F),Vent A (°F),Vent B (°F),Average (°F),Status,Notes";
   const rows = records.map(r => {
-    const dt = new Date(r.timestamp);
-    const shift = dt.getHours() < 12 ? "AM" : "PM";
-    return `${formatDate(r.timestamp)},${r.inspectorName},${r.inspectorID},${r.carID},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${shift},${r.depot}`;
+    const inspectDt = new Date(r.startTime);
+    const shift = inspectDt.getHours() < 12 ? "AM" : "PM";
+    const lastName = r.inspectorName.split(" ").pop() || r.inspectorName;
+    const dateStr = inspectDt.toLocaleDateString("en-US");
+    const timeStr = inspectDt.toLocaleTimeString("en-US");
+    const uploadedOn = new Date().toLocaleString("en-US");
+    const notes = (r.notes || "").replace(/,/g, ";");
+    return `${uploadedOn},${lastName},${r.carID},${dateStr},${shift},${r.depot},${timeStr},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${notes}`;
   });
   return [header, ...rows].join("\n");
 }
@@ -74,27 +81,24 @@ const [uploading, setUploading] = useState(false);
 
   // 10 second timeout so it fails fast instead of hanging
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const response = await fetch(`${SERVER_URL}/upload-csv`, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: csv,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    const result = await response.json();
-    Alert.alert("Upload Successful", `${result.added} records sent to server.`);
-  } catch (e: any) {
-    clearTimeout(timeout);
-    const msg = e?.name === "AbortError"
-      ? "Request timed out. Check that the server is running and the URL is correct."
-      : "Could not reach the server.\n\n• Is node server.js running?\n• Is the tunnel URL current?\n• Are phone and laptop on same network?";
-    Alert.alert("Upload Failed", msg);
-  } finally {
-    setUploading(false);
-  }
+  const response = await fetch(`${SERVER_URL}/upload-csv`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: csv,
+    signal: controller.signal,
+  });
+  clearTimeout(timeout);
+  const text = await response.text();
+  Alert.alert("Server Response", `Status: ${response.status}\n\n${text.substring(0, 300)}`);
+} catch (e: any) {
+  clearTimeout(timeout);
+  Alert.alert("Network Error", `${e?.name}: ${e?.message}`);
+} finally {
+  setUploading(false);
+}
 }
 
   function confirmClear() {
