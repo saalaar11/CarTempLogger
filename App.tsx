@@ -71,6 +71,7 @@ export default function App() {
               startTime: scanStartTime,  // we'll add this below
               inspectorName: inspector.name,
               inspectorID: inspector.id,
+              photos: readings.photos,
               depot: readings.depot,
               notes: readings.notes || "",
             };

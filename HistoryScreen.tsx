@@ -1,8 +1,6 @@
 import { useState } from "react";
-import {
-  View, Text, StyleSheet, FlatList,
-  Pressable, Share, Alert
-} from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, Share, Alert,
+  Modal, Image, ScrollView, Dimensions } from "react-native";
 
 
 export type ScanRecord = {
@@ -17,6 +15,7 @@ export type ScanRecord = {
   startTime: number;
   inspectorName: string;
   inspectorID: string;
+  photos: string[];
   depot: string;
   notes: string;
 };
@@ -40,23 +39,33 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString();
 }
 
+function formatTimeClean(ts: number): string {
+  const d = new Date(ts);
+  const h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, "0");
+  const s = d.getSeconds().toString().padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${m}:${s} ${ampm}`;
+}
+
 function generateCSV(records: ScanRecord[]): string {
-  const header = "Uploaded On,Inspector Last Name,Car ID,Date,AM/PM,Shop,Start Time,Center (°F),Vent A (°F),Vent B (°F),Average (°F),Status,Notes";
+  const header = "Uploaded On,Inspector Last Name,Car ID,Date,AM/PM,Shop,Start Time,Center (F),Vent A (F),Vent B (F),Average (F),Status,Notes";
   const rows = records.map(r => {
-    const inspectDt = new Date(r.startTime);
+    const inspectDt = new Date(r.startTime || r.timestamp);
     const shift = inspectDt.getHours() < 12 ? "AM" : "PM";
     const lastName = r.inspectorName.split(" ").pop() || r.inspectorName;
     const dateStr = inspectDt.toLocaleDateString("en-US");
-    const timeStr = inspectDt.toLocaleTimeString("en-US");
-    const uploadedOn = new Date().toLocaleString("en-US");
+    const uploadedOn = new Date().toLocaleDateString("en-US");
     const notes = (r.notes || "").replace(/,/g, ";");
-    return `${uploadedOn},${lastName},${r.carID},${dateStr},${shift},${r.depot},${timeStr},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${notes}`;
+    return `${uploadedOn},${lastName},${r.carID},${dateStr},${shift},${r.depot},${formatTimeClean(r.startTime || r.timestamp)},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${notes}`;
   });
-  return [header, ...rows].join("\n");
+  return "\uFEFF" + [header, ...rows].join("\n");
 }
 
 export default function HistoryScreen({ records, onBack, onClear }: Props) {
 const [uploading, setUploading] = useState(false);
+const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
   async function handleExport() {
     if (records.length === 0) {
       Alert.alert("No data", "No scan records to export yet.");
@@ -91,15 +100,18 @@ const [uploading, setUploading] = useState(false);
     signal: controller.signal,
   });
   clearTimeout(timeout);
-  const text = await response.text();
-  Alert.alert("Server Response", `Status: ${response.status}\n\n${text.substring(0, 300)}`);
+  const result = await response.json();
+  Alert.alert("Upload Successful", `${result.added} records sent to server.`);
 } catch (e: any) {
   clearTimeout(timeout);
-  Alert.alert("Network Error", `${e?.name}: ${e?.message}`);
+  const msg = e?.name === "AbortError"
+    ? "Server is waking up — wait 20 seconds and try again."
+    : `Upload failed: ${e?.message}`;
+  Alert.alert("Upload Failed", msg);
 } finally {
   setUploading(false);
 }
-}
+  }
 
   function confirmClear() {
     Alert.alert(
@@ -163,6 +175,17 @@ const [uploading, setUploading] = useState(false);
                 <Text style={styles.cardTime}>{formatDate(item.timestamp)}</Text>
               </View>
               <Text style={styles.cardDepot}>{item.depot} · {item.inspectorName}</Text>
+              {item.notes ? (
+                <Text style={styles.cardNotes}>📝 {item.notes}</Text>
+              ) : null}
+              {item.photos?.length > 0 && (
+  <Pressable onPress={() => setViewingPhotos(item.photos)}>
+    <Text style={styles.cardNotes}>
+      📷 {item.photos.length} photo{item.photos.length > 1 ? "s" : ""} attached — tap to view
+    </Text>
+  </Pressable>
+  
+)}
             </View>
           )}
         />
@@ -173,6 +196,38 @@ const [uploading, setUploading] = useState(false);
           <Text style={styles.clearText}>Clear History</Text>
         </Pressable>
       )}
+      {/* Photo Viewer Modal */}
+<Modal
+  visible={viewingPhotos !== null}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setViewingPhotos(null)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContainer}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>
+          Photos ({viewingPhotos?.length || 0})
+        </Text>
+        <Pressable onPress={() => setViewingPhotos(null)}>
+          <Text style={styles.modalClose}>✕ Close</Text>
+        </Pressable>
+      </View>
+      <ScrollView contentContainerStyle={styles.modalScroll}>
+        {viewingPhotos?.map((uri, index) => (
+          <View key={index} style={styles.modalPhotoWrapper}>
+            <Text style={styles.modalPhotoLabel}>Photo {index + 1}</Text>
+            <Image
+              source={{ uri }}
+              style={styles.modalPhoto}
+              resizeMode="contain"
+            />
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
     </View>
   );
 }
@@ -216,4 +271,55 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF3B30", alignItems: "center",
   },
   clearText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  cardNotes: { fontSize: 12, color: "#666", fontStyle: "italic" },
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.85)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+modalContainer: {
+  width: "92%",
+  maxHeight: "88%",
+  backgroundColor: "#1c1c1e",
+  borderRadius: 16,
+  overflow: "hidden",
+},
+modalHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: 16,
+  borderBottomWidth: 1,
+  borderBottomColor: "#333",
+},
+modalTitle: {
+  color: "#fff",
+  fontSize: 17,
+  fontWeight: "700",
+},
+modalClose: {
+  color: "#FF3B30",
+  fontSize: 15,
+  fontWeight: "600",
+},
+modalScroll: {
+  padding: 16,
+  gap: 16,
+},
+modalPhotoWrapper: {
+  gap: 6,
+},
+modalPhotoLabel: {
+  color: "#999",
+  fontSize: 12,
+  textTransform: "uppercase",
+  letterSpacing: 1,
+},
+modalPhoto: {
+  width: "100%",
+  height: Dimensions.get("window").width * 0.75,
+  borderRadius: 10,
+  backgroundColor: "#000",
+},
 });

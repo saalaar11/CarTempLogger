@@ -1,19 +1,19 @@
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import {
-  View, Text, StyleSheet, TextInput,
-  Pressable, ScrollView, KeyboardAvoidingView, Platform
-} from "react-native";
+import { View, Text, StyleSheet, TextInput,
+  Pressable, ScrollView, KeyboardAvoidingView, Platform, Image, Alert } from "react-native";
 import { useBLE } from "./useBLE";
 
 type Props = {
   carID: string;
   onComplete: (readings: {
-    center: number;
-    ventA: number;
-    ventB: number;
-    depot: string;
-    notes: string;
-  }) => void;
+  center: number;
+  ventA: number;
+  ventB: number;
+  depot: string;
+  notes: string;
+  photos: string[];
+}) => void;
   onBack: () => void;
 };
 
@@ -56,6 +56,8 @@ export default function ReadingScreen({ carID, onComplete, onBack }: Props) {
   const [readings, setReadings] = useState<Readings>({ center: "", ventA: "", ventB: "" });
   const [depot, setDepot] = useState("EAST NEW YORK");
   const { status, temperature, startScan, disconnect } = useBLE();
+  const [noteText, setNoteText] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const parsed = {
     center: parseFloat(readings.center),
@@ -65,6 +67,21 @@ export default function ReadingScreen({ carID, onComplete, onBack }: Props) {
   const allValid = !isNaN(parsed.center) && !isNaN(parsed.ventA) && !isNaN(parsed.ventB);
   const average  = allValid ? (parsed.center + parsed.ventA + parsed.ventB) / 3 : null;
   const statusResult = average !== null ? getStatus(average) : null;
+
+  async function handleTakePhoto() {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert("Permission needed", "Camera access is required to take photos.");
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    quality: 0.6,
+    allowsEditing: false,
+  });
+  if (!result.canceled && result.assets[0]) {
+    setPhotos(prev => [...prev, result.assets[0].uri]);
+  }
+}
 
   function captureReading(key: DecalKey) {
     if (temperature !== null) {
@@ -168,10 +185,50 @@ export default function ReadingScreen({ carID, onComplete, onBack }: Props) {
           </View>
         )}
 
+        {/* Notes */}
+        <View style={styles.inputRow}>
+          <Text style={styles.inputLabel}>Notes (optional)</Text>
+          <TextInput
+            style={styles.notesInput}
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="Enter any observations about this car..."
+            placeholderTextColor="#999"
+            multiline
+            numberOfLines={3}
+            maxLength={300}
+          />
+        </View>
+
+        {/* Photos */}
+<View style={styles.inputRow}>
+  <Text style={styles.inputLabel}>Photos ({photos.length}/5)</Text>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+      {photos.map((uri, index) => (
+        <View key={index} style={styles.photoWrapper}>
+          <Image source={{ uri }} style={styles.photoThumb} />
+          <Pressable
+            style={styles.photoDelete}
+            onPress={() => setPhotos(prev => prev.filter((_, i) => i !== index))}
+          >
+            <Text style={styles.photoDeleteText}>✕</Text>
+          </Pressable>
+        </View>
+      ))}
+      {photos.length < 5 && (
+        <Pressable style={styles.photoAddBtn} onPress={handleTakePhoto}>
+          <Text style={styles.photoAddText}>📷 Add Photo</Text>
+        </Pressable>
+      )}
+    </View>
+  </ScrollView>
+</View>
+
         {/* Save button */}
         <Pressable
           style={[styles.button, !allValid && styles.buttonDisabled]}
-          onPress={() => allValid && onComplete({ ...parsed, depot, notes: "" })}
+          onPress={() => allValid && onComplete({ ...parsed, depot, notes: noteText, photos })}
           disabled={!allValid}
         >
           <Text style={styles.buttonText}>Save Reading</Text>
@@ -214,4 +271,29 @@ const styles = StyleSheet.create({
   button:          { backgroundColor: "#007AFF", borderRadius: 12, paddingVertical: 16, alignItems: "center" },
   buttonDisabled:  { backgroundColor: "#ccc" },
   buttonText:      { color: "#fff", fontSize: 18, fontWeight: "700" },
+  photoWrapper: { position: "relative" },
+photoThumb: { width: 72, height: 72, borderRadius: 8 },
+photoDelete: {
+  position: "absolute", top: -6, right: -6,
+  backgroundColor: "#FF3B30", borderRadius: 10,
+  width: 20, height: 20, justifyContent: "center", alignItems: "center",
+},
+photoDeleteText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+photoAddBtn: {
+  width: 72, height: 72, borderRadius: 8,
+  borderWidth: 1.5, borderColor: "#007AFF", borderStyle: "dashed",
+  justifyContent: "center", alignItems: "center",
+},
+photoAddText: { color: "#007AFF", fontSize: 11, textAlign: "center" },
+  notesInput: {
+  borderWidth: 1.5,
+  borderColor: "#ddd",
+  borderRadius: 10,
+  paddingHorizontal: 14,
+  paddingVertical: 12,
+  fontSize: 15,
+  color: "#000",
+  minHeight: 80,
+  textAlignVertical: "top",
+},
 });
