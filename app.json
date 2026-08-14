@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.cartemplogger",
+      "bundleIdentifier": "com.saelectronics.cartemplogger",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "CarTempLogger uses Bluetooth to connect to the temperature sensor accessory.",
         "NSBluetoothPeripheralUsageDescription": "CarTempLogger uses Bluetooth to connect to the temperature sensor accessory.",
