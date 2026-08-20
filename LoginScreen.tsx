@@ -6,7 +6,7 @@ import {
 
 const USERS: Record<string, { password: string; displayName: string; inspectorID: string }> = {
   "parsons": { password: "1234", displayName: "Parsons Archer", inspectorID: "INS001" },
-  "admin":   { password: "admin", displayName: "Admin User",    inspectorID: "INS000" },
+  "ahmed":   { password: "1234", displayName: "Saalaar Ahmed",    inspectorID: "INS000" },
 };
 
 type Props = {

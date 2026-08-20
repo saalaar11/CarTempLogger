@@ -50,7 +50,7 @@ function formatTimeClean(ts: number): string {
 }
 
 function generateCSV(records: ScanRecord[]): string {
-  const header = "Uploaded On,Inspector Last Name,Car ID,Date,AM/PM,Shop,Start Time,Center (F),Vent A (F),Vent B (F),Average (F),Status,Notes";
+  const header = "Record ID,Uploaded On,Inspector Last Name,Car ID,Date,AM/PM,Shop,Start Time,Center (F),Vent A (F),Vent B (F),Average (F),Status,Notes";
   const rows = records.map(r => {
     const inspectDt = new Date(r.startTime || r.timestamp);
     const shift = inspectDt.getHours() < 12 ? "AM" : "PM";
@@ -58,7 +58,7 @@ function generateCSV(records: ScanRecord[]): string {
     const dateStr = inspectDt.toLocaleDateString("en-US");
     const uploadedOn = new Date().toLocaleDateString("en-US");
     const notes = (r.notes || "").replace(/,/g, ";");
-    return `${uploadedOn},${lastName},${r.carID},${dateStr},${shift},${r.depot},${formatTimeClean(r.startTime || r.timestamp)},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${notes}`;
+    return `${r.id},${uploadedOn},${lastName},${r.carID},${dateStr},${shift},${r.depot},${formatTimeClean(r.startTime || r.timestamp)},${r.center.toFixed(2)},${r.ventA.toFixed(2)},${r.ventB.toFixed(2)},${r.average.toFixed(2)},${r.status},${notes}`;
   });
   return "\uFEFF" + [header, ...rows].join("\n");
 }
@@ -101,7 +101,7 @@ const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
   });
   clearTimeout(timeout);
   const result = await response.json();
-  Alert.alert("Upload Successful", `${result.added} records sent to server.`);
+  Alert.alert("Upload Complete", `${result.added} new records uploaded, ${result.skipped || 0} duplicates skipped.`);
 } catch (e: any) {
   clearTimeout(timeout);
   const msg = e?.name === "AbortError"
